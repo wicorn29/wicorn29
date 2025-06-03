@@ -1,16 +1,19 @@
-## Hi there 👋
+# wicorn29
 
-<!--
-**wicorn29/wicorn29** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+I'm a high school student with a silly little homelab. I run my own infrastructure and mostly use Ubiquiti gear.
 
-Here are some ideas to get you started:
+## Stuff I Know
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+- Swift
+- HTML / CSS
+- JavaScript
+- Python
+- Lua
+
+## Website
+
+[wicorn29.net](https://wicorn29.net)
+
+## Contact
+
+**wilsonc@wicorn29.net**
