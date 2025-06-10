@@ -1,0 +1,133 @@
+/* global.css - Wicorn29 Networks Global Styles */
+
+/* ========= Base Variables ========= */
+:root {
+    --color-bg: #0a120f;
+    --color-surface: #101b14;
+    --color-accent: #16db65;     /* light green */
+    --color-primary: #0b3d20;    /* dark green */
+    --color-warning: #ff4c4c;    /* red (minimal usage) */
+    --color-text: #e0f2e9;
+    --color-muted: #9db5a0;
+
+    --font-base: system-ui, sans-serif;
+    --spacing: 1rem;
+    --radius: 12px;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ========= Reset & Base Styles ========= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-family: var(--font-base);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
+/* ========= Layout Containers ========= */
+.container {
+    width: 90%;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: var(--spacing);
+}
+
+section {
+    margin-bottom: 2rem;
+}
+
+/* ========= Typography ========= */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+}
+
+p, li, span {
+    color: var(--color-text);
+    font-size: 1rem;
+}
+
+a {
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--color-warning);
+    text-decoration: underline;
+}
+
+/* ========= Header ========= */
+.site-header {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-primary);
+    padding: 2rem 0;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.site-header h1 {
+    font-size: 2.5rem;
+    color: var(--color-accent);
+}
+
+.site-header p {
+    color: var(--color-muted);
+}
+
+.site-header nav ul {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    list-style: none;
+    margin-top: 1rem;
+}
+
+.site-header nav a {
+    font-weight: bold;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+}
+
+.site-header nav a:hover {
+    background-color: var(--color-primary);
+}
+
+/* ========= Footer ========= */
+.site-footer {
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-primary);
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+    margin-top: 3rem;
+}
+
+/* ========= Utility Classes ========= */
+.text-muted {
+    color: var(--color-muted);
+}
+
+.text-accent {
+    color: var(--color-accent);
+}
+
+.bg-surface {
+    background-color: var(--color-surface);
+}
+
+.card {
+    background-color: var(--color-surface);
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: var(--spacing);
+}
