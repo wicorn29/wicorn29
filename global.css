@@ -2,183 +2,121 @@
 
 /* ========= Base Variables ========= */
 :root {
-    --color-bg: #d4edc9;          /* lighter green background */
-    --color-surface: #228B22;     /* forest green */
-    --color-accent: #a6d08c;      /* lighter accent green */
-    --color-primary: #155c15;     /* dark forest green */
-    --color-warning: #ff4c4c;     /* red (minimal usage) */
-    --color-text: #1d3b1a;        /* dark text for contrast */
-    --color-muted: #476847;       /* muted green */
-
-    --font-base: system-ui, sans-serif;
-    --spacing: 1rem;
-    --radius: 12px;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --color-bg: #d4edc9;        /* light green background */
+  --color-navbar: #228B22;    /* forest green */
+  --color-navbar-text: white;
+  --color-footer: #206f20;    /* darker forest green */
+  --color-text: #1d3b1a;      /* dark text */
+  --color-link: white;
+  --color-link-hover: #a6d08c; /* lighter green */
+  
+  --font-base: 'Segoe UI', system-ui, sans-serif;
+  --spacing: 1rem;
+  --radius: 12px;
+  --shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
 /* ========= Reset & Base Styles ========= */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html, body {
-    height: 100%;
-    font-family: var(--font-base);
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    line-height: 1.6;
+  height: 100%;
+  font-family: var(--font-base);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ========= Layout Containers ========= */
-.container {
-    width: 90%;
-    max-width: 960px;
-    margin: 0 auto;
-    padding: var(--spacing);
+/* ========= Navbar ========= */
+.navbar {
+  background-color: var(--color-navbar);
+  color: var(--color-navbar-text);
+  padding: var(--spacing) 0;
 }
 
-section {
-    margin-bottom: 2rem;
+.nav-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-/* ========= Typography ========= */
-h1, h2, h3, h4, h5, h6 {
-    color: var(--color-primary);
-    margin-bottom: 0.5rem;
+.logo {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--color-navbar-text);
 }
 
-p, li, span {
-    color: var(--color-text);
-    font-size: 1rem;
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
 }
 
-a {
-    color: var(--color-accent);
-    text-decoration: none;
-    transition: color 0.2s ease;
+.nav-links a {
+  color: var(--color-link);
+  text-decoration: none;
+  font-weight: 500;
+  transition: text-decoration 0.2s ease;
 }
 
-a:hover {
-    color: var(--color-warning);
-    text-decoration: underline;
+.nav-links a:hover {
+  text-decoration: underline;
 }
 
-/* ========= Header ========= */
-.site-header {
-    background-color: var(--color-surface);
-    border-bottom: 1px solid var(--color-primary);
-    padding: 1.5rem 0;
-    text-align: center;
-    box-shadow: var(--shadow);
+/* ========= Main Content ========= */
+.main-content {
+  flex: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
 }
 
-.site-header h1 {
-    font-size: 2.5rem;
-    color: var(--color-bg);
+.welcome h2 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
-.site-header p {
-    color: var(--color-muted);
-}
-
-.site-header nav ul {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    list-style: none;
-    margin-top: 1rem;
-}
-
-.site-header nav a {
-    font-weight: bold;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius);
-    color: var(--color-bg);
-}
-
-.site-header nav a:hover {
-    background-color: var(--color-primary);
+.welcome p {
+  font-size: 1.1rem;
 }
 
 /* ========= Footer ========= */
-.site-footer {
-    background-color: var(--color-surface);
-    border-top: 1px solid var(--color-primary);
-    padding: 1rem;
-    text-align: center;
-    font-size: 0.9rem;
-    margin-top: 3rem;
-    color: var(--color-bg);
-}
-
-/* ========= Dropdown (for services button) ========= */
-.dropdown {
-    position: relative;
-}
-
-.dropdown button {
-    background: none;
-    border: none;
-    color: var(--color-bg);
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: var(--radius);
-    transition: background-color 0.3s ease;
-}
-
-.dropdown button:hover,
-.dropdown button:focus {
-    background-color: var(--color-primary);
-    outline: none;
-}
-
-.dropdown-menu {
-    position: absolute;
-    top: 110%;
-    right: 0;
-    background-color: var(--color-primary);
-    border-radius: 8px;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-    list-style: none;
-    min-width: 160px;
-    z-index: 1000;
-}
-
-.dropdown-menu li a {
-    display: block;
-    padding: 0.5rem 1rem;
-    color: var(--color-bg);
-    text-decoration: none;
-    font-weight: 600;
-    transition: background-color 0.2s ease;
-}
-
-.dropdown-menu li a:hover {
-    background-color: var(--color-accent);
-    color: var(--color-primary);
+.footer {
+  background-color: var(--color-footer);
+  color: var(--color-navbar-text);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
+  margin-top: auto;
 }
 
 /* ========= Utility Classes ========= */
 .text-muted {
-    color: var(--color-muted);
+  color: #7f9c6e; /* softer green */
 }
 
 .text-accent {
-    color: var(--color-accent);
+  color: var(--color-link-hover);
 }
 
 .bg-surface {
-    background-color: var(--color-surface);
+  background-color: var(--color-navbar);
+  color: var(--color-navbar-text);
 }
 
 .card {
-    background-color: var(--color-surface);
-    padding: var(--spacing);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    margin-bottom: var(--spacing);
+  background-color: var(--color-navbar);
+  padding: var(--spacing);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: var(--spacing);
 }
