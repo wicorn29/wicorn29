@@ -2,47 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>wicorn29.net</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #0f0f0f;
-      color: #c0ffc0;
-      font-family: monospace, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      text-align: center;
-    }
-    .box {
-      max-width: 500px;
-      padding: 2rem;
-      border: 2px solid #2f2f2f;
-      border-radius: 12px;
-      background-color: #1a1a1a;
-    }
-    img {
-      max-width: 100px;
-      margin-bottom: 1rem;
-    }
-    h1 {
-      margin: 0.5rem 0;
-      color: #a0ffa0;
-    }
-    p {
-      color: #90c090;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wicorn29</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="box">
-    <img src="/wicorn29.png" alt="wicorn29 logo" />
-    <h1>wicorn29.net</h1>
-    <p>I pay for this domain and yet have not gotten around to doing anything with it yet.</p>
-  </div>
+
+  <nav class="navbar">
+    <div class="nav-container">
+      <h1 class="logo">Wicorn29</h1>
+      <ul class="nav-links">
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Projects</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#">Contact</a></li>
+
+        <li class="dropdown">
+          <button id="servicesBtn" aria-haspopup="true" aria-expanded="false">
+            Other Wicorn29 Services ▼
+          </button>
+          <ul id="servicesMenu" class="dropdown-menu" hidden>
+            <li><a href="https://tirros.net" target="_blank" rel="noopener">tirros.net</a></li>
+            <li><a href="http://accounts.wicorn29.net/login/" target="_blank" rel="noopener">Login</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <section class="welcome">
+      <h2>Welcome to Wicorn29</h2>
+      <p>This is your hub for tech projects, tools, and educational resources.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 Wicorn29. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const servicesBtn = document.getElementById('servicesBtn');
+    const servicesMenu = document.getElementById('servicesMenu');
+
+    servicesBtn.addEventListener('click', () => {
+      const expanded = servicesBtn.getAttribute('aria-expanded') === 'true' || false;
+      servicesBtn.setAttribute('aria-expanded', !expanded);
+      if (servicesMenu.hasAttribute('hidden')) {
+        servicesMenu.removeAttribute('hidden');
+      } else {
+        servicesMenu.setAttribute('hidden', '');
+      }
+    });
+
+    // Close menu if clicking outside
+    document.addEventListener('click', (e) => {
+      if (!servicesBtn.contains(e.target) && !servicesMenu.contains(e.target)) {
+        servicesMenu.setAttribute('hidden', '');
+        servicesBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  </script>
+
 </body>
 </html>
