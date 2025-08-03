@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>raven</title>
+  <style>
+    body {
+      background-color: #f9f9f9;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding-top: 100px;
+      color: #333;
+    }
+    h1 {
+      font-size: 48px;
+      color: #444;
+    }
+    p {
+      font-size: 22px;
+      margin: 15px 0;
+    }
+    #ip {
+      font-size: 32px;
+      font-weight: bold;
+      color: #0077cc;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <p>In case you didn’t know, here’s your IP address:</p>
+  <div id="ip">Loading...</div>
+  <p>(You learn something new every day!)</p>
+
+  <script>
+    fetch('https://api.ipify.org?format=json')
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('ip').textContent = data.ip;
+      });
+  </script>
+</body>
+</html>
