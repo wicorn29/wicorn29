@@ -5,6 +5,7 @@
     "subs": [
       { "name": "System Core", "url": "https://served.wicorn29.net" },
       { "name": "CodyChat", "url": "https://cody.wicorn29.net" },
+      { "name": "CodyChat Direct", "url": "http://50.39.155.159:67" },
       { "name": "Proxmox VE", "url": "https://proxmox.wicorn29.net" },
       { "name": "JellyFin", "url": "https://jellyfin.wicorn29.net" }
     ]
