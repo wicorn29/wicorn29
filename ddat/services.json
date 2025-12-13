@@ -3,7 +3,7 @@
     "name": "wicorn29.net",
     "url": "https://wicorn29.net",
     "subs": [
-      { "name": "System Core", "url": "https://serve.wicorn29.net" },
+      { "name": "System Core", "url": "https://served.wicorn29.net" },
       { "name": "CodyChat", "url": "https://cody.wicorn29.net" },
       { "name": "Proxmox VE", "url": "https://proxmox.wicorn29.net" },
       { "name": "JellyFin", "url": "https://jellyfin.wicorn29.net" }
