@@ -9,8 +9,9 @@
 </head>
 <body>
 
-    <div id="desktop">
-        <!-- Content is generated here -->
+    <div class="window" id="readme-window">
+        <div class="window-header">README.md</div>
+        <div class="window-body" id="readme-content"></div>
     </div>
 
     <div class="window" id="services-window">
@@ -36,101 +37,61 @@
             document.getElementById('services-window').style.display = 'none';
         }
 
-        function createWindow(title, contentHTML) {
-            const windowDiv = document.createElement('div');
-            windowDiv.className = 'window';
-
-            const headerDiv = document.createElement('div');
-            headerDiv.className = 'window-header';
-            headerDiv.textContent = title;
-
-            const bodyDiv = document.createElement('div');
-            bodyDiv.className = 'window-body';
-            bodyDiv.innerHTML = contentHTML;
-
-            windowDiv.appendChild(headerDiv);
-            windowDiv.appendChild(bodyDiv);
-            return windowDiv;
-        }
-
         fetch('README.md')
             .then(response => response.text())
             .then(text => {
-                const desktop = document.getElementById('desktop');
-                const sections = text.split('\n## ');
-                
-                const aboutContent = sections.shift().replace(/^#\s.*\n/, '');
-                desktop.appendChild(createWindow('About Me', marked.parse(aboutContent)));
+                // Populate main content window
+                document.getElementById('readme-content').innerHTML = marked.parse(text);
 
-                sections.forEach(section => {
-                    const endOfTitle = section.indexOf('\n');
-                    let title = section.substring(0, endOfTitle).trim();
-                    const content = section.substring(endOfTitle).trim();
-
-                    if (title.toLowerCase() === 'stuff i do not know' || title.toLowerCase() === 'website') {
-                        return; // Skip these sections
-                    }
-                    
-                    if (title.toLowerCase() === 'stuff i know') {
-                        title = 'crap i know';
-                    }
-
-                    desktop.appendChild(createWindow(title, marked.parse(content)));
-                });
-            });
-
-
-        fetch('ddat/services.json')
-            .then(response => response.json())
-            .then(data => {
+                // Populate services menu from ## Services section
                 const servicesTree = document.getElementById('services-tree');
+                const servicesSection = text.split('\n## Services\n')[1];
+                let currentMainService = null;
 
-                data.forEach(service => {
-                    if (service.visible) {
-                        const serviceItem = document.createElement('li');
-                        const serviceLink = document.createElement('a');
-                        serviceLink.href = service.url;
-                        serviceLink.target = '_blank';
-                        
-                        const img = document.createElement('img');
-                        img.src = `https://www.google.com/s2/favicons?domain=${service.url}`;
-                        img.alt = service.name;
-                        img.style.width = '16px';
-                        img.style.height = '16px';
-                        img.style.marginRight = '5px';
+                if (servicesSection) {
+                    const lines = servicesSection.split('\n');
+                    lines.forEach(line => {
+                        const isSubItem = line.startsWith('  ') || line.startsWith('\t');
+                        const trimmedLine = line.trim();
 
-                        serviceLink.appendChild(img);
-                        serviceLink.appendChild(document.createTextNode(service.name));
-                        serviceItem.appendChild(serviceLink);
+                        if (trimmedLine.startsWith('- ')) {
+                            const match = trimmedLine.match(/- \[(.+)\]\((.+)\)/);
+                            if (match) {
+                                const name = match[1];
+                                const url = match[2];
 
-                        if (service.subs && service.subs.length > 0) {
-                            const subList = document.createElement('ul');
-                            subList.classList.add('tree-view');
-                            service.subs.forEach(sub => {
-                                if (sub.visible) {
-                                    const subItem = document.createElement('li');
-                                    const subLink = document.createElement('a');
-                                    subLink.href = sub.url;
-                                    subLink.target = '_blank';
+                                const listItem = document.createElement('li');
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.target = '_blank';
 
-                                    const subImg = document.createElement('img');
-                                    subImg.src = `https://www.google.com/s2/favicons?domain=${sub.url}`;
-                                    subImg.alt = sub.name;
-                                    subImg.style.width = '16px';
-                                    subImg.style.height = '16px';
-                                    subImg.style.marginRight = '5px';
+                                const img = document.createElement('img');
+                                img.src = `https://www.google.com/s2/favicons?domain=${url}`;
+                                img.alt = name;
+                                img.style.width = '16px';
+                                img.style.height = '16px';
+                                img.style.marginRight = '5px';
 
-                                    subLink.appendChild(subImg);
-                                    subLink.appendChild(document.createTextNode(sub.name));
-                                    subItem.appendChild(subLink);
-                                    subList.appendChild(subItem);
+                                link.appendChild(img);
+                                link.appendChild(document.createTextNode(` ${name}`));
+                                listItem.appendChild(link);
+
+                                if (isSubItem && currentMainService) {
+                                    let subList = currentMainService.querySelector('ul');
+                                    if (!subList) {
+                                        subList = document.createElement('ul');
+                                        subList.classList.add('tree-view');
+                                        currentMainService.appendChild(subList);
+                                    }
+                                    subList.appendChild(listItem);
+                                } else if (!isSubItem) {
+                                    servicesTree.appendChild(listItem);
+                                    currentMainService = listItem;
                                 }
-                            });
-                            serviceItem.appendChild(subList);
+                            }
                         }
-                        servicesTree.appendChild(serviceItem);
-                    }
-                });
+                    });
+                }
             });
     </script>
 
