@@ -9,19 +9,8 @@
 </head>
 <body>
 
-    <div class="window" id="about-window">
-        <div class="window-header">About Me</div>
-        <div class="window-body" id="about-content"></div>
-    </div>
-
-    <div class="window" id="skills-window">
-        <div class="window-header">crap i know</div>
-        <div class="window-body" id="skills-content"></div>
-    </div>
-
-    <div class="window" id="contact-window">
-        <div class="window-header">Contact</div>
-        <div class="window-body" id="contact-content"></div>
+    <div id="desktop">
+        <!-- Content is generated here -->
     </div>
 
     <div class="window" id="services-window">
@@ -47,17 +36,49 @@
             document.getElementById('services-window').style.display = 'none';
         }
 
+        function createWindow(title, contentHTML) {
+            const windowDiv = document.createElement('div');
+            windowDiv.className = 'window';
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'window-header';
+            headerDiv.textContent = title;
+
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = 'window-body';
+            bodyDiv.innerHTML = contentHTML;
+
+            windowDiv.appendChild(headerDiv);
+            windowDiv.appendChild(bodyDiv);
+            return windowDiv;
+        }
+
         fetch('README.md')
             .then(response => response.text())
             .then(text => {
-                const aboutContent = text.split('##')[0];
-                const skillsContent = text.split('## Stuff I Know')[1].split('## Stuff I DO NOT know')[0];
-                const contactContent = text.split('## Contact')[1];
+                const desktop = document.getElementById('desktop');
+                const sections = text.split('\n## ');
+                
+                const aboutContent = sections.shift().replace(/^#\s.*\n/, '');
+                desktop.appendChild(createWindow('About Me', marked.parse(aboutContent)));
 
-                document.getElementById('about-content').innerHTML = marked.parse(aboutContent);
-                document.getElementById('skills-content').innerHTML = marked.parse(skillsContent);
-                document.getElementById('contact-content').innerHTML = marked.parse(contactContent);
+                sections.forEach(section => {
+                    const endOfTitle = section.indexOf('\n');
+                    let title = section.substring(0, endOfTitle).trim();
+                    const content = section.substring(endOfTitle).trim();
+
+                    if (title.toLowerCase() === 'stuff i do not know' || title.toLowerCase() === 'website') {
+                        return; // Skip these sections
+                    }
+                    
+                    if (title.toLowerCase() === 'stuff i know') {
+                        title = 'crap i know';
+                    }
+
+                    desktop.appendChild(createWindow(title, marked.parse(content)));
+                });
             });
+
 
         fetch('ddat/services.json')
             .then(response => response.json())
