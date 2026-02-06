@@ -40,61 +40,59 @@
         fetch('README.md')
             .then(response => response.text())
             .then(text => {
-                const parts = text.split('\n## Services');
-                const mainContent = parts[0];
-                const servicesContent = parts.length > 1 ? parts[1] : '';
+                document.getElementById('readme-content').innerHTML = marked.parse(text);
+            });
 
-                // Populate main content window
-                document.getElementById('readme-content').innerHTML = marked.parse(mainContent);
-
-                // Populate services menu
+        fetch('ddat/services.json')
+            .then(response => response.json())
+            .then(data => {
                 const servicesTree = document.getElementById('services-tree');
-                let currentMainService = null;
+                data.forEach(service => {
+                    if (service.visible) {
+                        const serviceItem = document.createElement('li');
+                        const serviceLink = document.createElement('a');
+                        serviceLink.href = service.url;
+                        serviceLink.target = '_blank';
 
-                if (servicesContent) {
-                    const lines = servicesContent.split('\n');
-                    lines.forEach(line => {
-                        const isSubItem = line.startsWith('  ') || line.startsWith('\t');
-                        const trimmedLine = line.trim();
+                        const img = document.createElement('img');
+                        img.src = `https://www.google.com/s2/favicons?domain=${service.url}`;
+                        img.alt = service.name;
+                        img.style.width = '16px';
+                        img.style.height = '16px';
+                        img.style.marginRight = '5px';
 
-                        if (trimmedLine.startsWith('- ')) {
-                            const match = trimmedLine.match(/- \[(.+)\]\((.+)\)/);
-                            if (match) {
-                                const name = match[1];
-                                const url = match[2];
+                        serviceLink.appendChild(img);
+                        serviceLink.appendChild(document.createTextNode(` ${service.name}`));
+                        serviceItem.appendChild(serviceLink);
 
-                                const listItem = document.createElement('li');
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.target = '_blank';
+                        if (service.subs && service.subs.length > 0) {
+                            const subList = document.createElement('ul');
+                            subList.classList.add('tree-view');
+                            service.subs.forEach(sub => {
+                                if (sub.visible) {
+                                    const subItem = document.createElement('li');
+                                    const subLink = document.createElement('a');
+                                    subLink.href = sub.url;
+                                    subLink.target = '_blank';
 
-                                const img = document.createElement('img');
-                                img.src = `https://www.google.com/s2/favicons?domain=${url}`;
-                                img.alt = name;
-                                img.style.width = '16px';
-                                img.style.height = '16px';
-                                img.style.marginRight = '5px';
+                                    const subImg = document.createElement('img');
+                                    subImg.src = `https://www.google.com/s2/favicons?domain=${sub.url}`;
+                                    subImg.alt = sub.name;
+                                    subImg.style.width = '16px';
+                                    subImg.style.height = '16px';
+                                    subImg.style.marginRight = '5px';
 
-                                link.appendChild(img);
-                                link.appendChild(document.createTextNode(` ${name}`));
-                                listItem.appendChild(link);
-
-                                if (isSubItem && currentMainService) {
-                                    let subList = currentMainService.querySelector('ul');
-                                    if (!subList) {
-                                        subList = document.createElement('ul');
-                                        subList.classList.add('tree-view');
-                                        currentMainService.appendChild(subList);
-                                    }
-                                    subList.appendChild(listItem);
-                                } else {
-                                    servicesTree.appendChild(listItem);
-                                    currentMainService = listItem;
+                                    subLink.appendChild(subImg);
+                                    subLink.appendChild(document.createTextNode(` ${sub.name}`));
+                                    subItem.appendChild(subLink);
+                                    subList.appendChild(subItem);
                                 }
-                            }
+                            });
+                            serviceItem.appendChild(subList);
                         }
-                    });
-                }
+                        servicesTree.appendChild(serviceItem);
+                    }
+                });
             });
     </script>
 
