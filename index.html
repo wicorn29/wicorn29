@@ -40,16 +40,19 @@
         fetch('README.md')
             .then(response => response.text())
             .then(text => {
-                // Populate main content window
-                document.getElementById('readme-content').innerHTML = marked.parse(text);
+                const parts = text.split('\n## Services');
+                const mainContent = parts[0];
+                const servicesContent = parts.length > 1 ? parts[1] : '';
 
-                // Populate services menu from ## Services section
+                // Populate main content window
+                document.getElementById('readme-content').innerHTML = marked.parse(mainContent);
+
+                // Populate services menu
                 const servicesTree = document.getElementById('services-tree');
-                const servicesSection = text.split('\n## Services\n')[1];
                 let currentMainService = null;
 
-                if (servicesSection) {
-                    const lines = servicesSection.split('\n');
+                if (servicesContent) {
+                    const lines = servicesContent.split('\n');
                     lines.forEach(line => {
                         const isSubItem = line.startsWith('  ') || line.startsWith('\t');
                         const trimmedLine = line.trim();
@@ -84,7 +87,7 @@
                                         currentMainService.appendChild(subList);
                                     }
                                     subList.appendChild(listItem);
-                                } else if (!isSubItem) {
+                                } else {
                                     servicesTree.appendChild(listItem);
                                     currentMainService = listItem;
                                 }

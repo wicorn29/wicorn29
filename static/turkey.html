@@ -52,7 +52,7 @@
         .then(response => response.text())
         .then(text => {
             const servicesTree = document.getElementById('services-tree');
-            const servicesSection = text.split('\n## Services\n')[1];
+            const servicesSection = text.split('\n## Services')[1];
             let currentMainService = null;
 
             if (servicesSection) {
