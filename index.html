@@ -1,24 +1,117 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>wicorn29.net - maintenance</title>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <style type="text/css">
-            body { text-align: center; padding: 10%; font: 20px Helvetica, sans-serif; color: #333; }
-            h1 { font-size: 50px; margin: 0; }
-            article { display: block; text-align: left; max-width: 650px; margin: 0 auto; }
-            a { color: #dc8100; text-decoration: none; }
-            a:hover { color: #333; text-decoration: none; }
-            @media only screen and (max-width : 480px) {
-                h1 { font-size: 40px; }
-            }
-        </style>
-    </head>
-    <body>
-        <article>
-            <h1>Wicorn29.net is under maintenance.</h1>
-            <p>Expected something else? Email me: wilsonc@wicorn29.net</p>
-        </article>
-    </body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wicorn29</title>
+    <link rel="stylesheet" href="global.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+    <div class="window" id="about-window">
+        <div class="window-header">About Me</div>
+        <div class="window-body" id="about-content"></div>
+    </div>
+
+    <div class="window" id="skills-window">
+        <div class="window-header">crap i know</div>
+        <div class="window-body" id="skills-content"></div>
+    </div>
+
+    <div class="window" id="contact-window">
+        <div class="window-header">Contact</div>
+        <div class="window-body" id="contact-content"></div>
+    </div>
+
+    <div class="window" id="services-window">
+        <div class="window-header">
+            <span>Services</span>
+            <div class="close-button" onclick="closeServices()">r</div>
+        </div>
+        <div class="window-body">
+            <ul class="tree-view" id="services-tree"></ul>
+        </div>
+    </div>
+
+    <div id="start-bar">
+        <div id="start-button" onclick="openServices()"><b>Services</b></div>
+    </div>
+
+    <script>
+        function openServices() {
+            document.getElementById('services-window').style.display = 'block';
+        }
+
+        function closeServices() {
+            document.getElementById('services-window').style.display = 'none';
+        }
+
+        fetch('README.md')
+            .then(response => response.text())
+            .then(text => {
+                const aboutContent = text.split('##')[0];
+                const skillsContent = text.split('## Stuff I Know')[1].split('## Stuff I DO NOT know')[0];
+                const contactContent = text.split('## Contact')[1];
+
+                document.getElementById('about-content').innerHTML = marked.parse(aboutContent);
+                document.getElementById('skills-content').innerHTML = marked.parse(skillsContent);
+                document.getElementById('contact-content').innerHTML = marked.parse(contactContent);
+            });
+
+        fetch('ddat/services.json')
+            .then(response => response.json())
+            .then(data => {
+                const servicesTree = document.getElementById('services-tree');
+
+                data.forEach(service => {
+                    if (service.visible) {
+                        const serviceItem = document.createElement('li');
+                        const serviceLink = document.createElement('a');
+                        serviceLink.href = service.url;
+                        serviceLink.target = '_blank';
+                        
+                        const img = document.createElement('img');
+                        img.src = `https://www.google.com/s2/favicons?domain=${service.url}`;
+                        img.alt = service.name;
+                        img.style.width = '16px';
+                        img.style.height = '16px';
+                        img.style.marginRight = '5px';
+
+                        serviceLink.appendChild(img);
+                        serviceLink.appendChild(document.createTextNode(service.name));
+                        serviceItem.appendChild(serviceLink);
+
+                        if (service.subs && service.subs.length > 0) {
+                            const subList = document.createElement('ul');
+                            subList.classList.add('tree-view');
+                            service.subs.forEach(sub => {
+                                if (sub.visible) {
+                                    const subItem = document.createElement('li');
+                                    const subLink = document.createElement('a');
+                                    subLink.href = sub.url;
+                                    subLink.target = '_blank';
+
+                                    const subImg = document.createElement('img');
+                                    subImg.src = `https://www.google.com/s2/favicons?domain=${sub.url}`;
+                                    subImg.alt = sub.name;
+                                    subImg.style.width = '16px';
+                                    subImg.style.height = '16px';
+                                    subImg.style.marginRight = '5px';
+
+                                    subLink.appendChild(subImg);
+                                    subLink.appendChild(document.createTextNode(sub.name));
+                                    subItem.appendChild(subLink);
+                                    subList.appendChild(subItem);
+                                }
+                            });
+                            serviceItem.appendChild(subList);
+                        }
+                        servicesTree.appendChild(serviceItem);
+                    }
+                });
+            });
+    </script>
+
+</body>
 </html>

@@ -1,21 +1,24 @@
+
 [
   {
     "name": "wicorn29.net",
     "url": "https://wicorn29.net",
+    "visible": true,
     "subs": [
-      { "name": "System Core", "url": "https://served.wicorn29.net" },
-      { "name": "CodyChat", "url": "https://cody.wicorn29.net" },
-      { "name": "Wicorn29 Direct", "url": "http://50.39.155.159" },
-      { "name": "Proxmox VE", "url": "https://proxmox.wicorn29.net" },
-      { "name": "JellyFin", "url": "https://jellyfin.wicorn29.net" },
-      { "name": "Nextcloud", "url": "https://cloud.wicorn29.net" }
+      { "name": "System Core", "url": "https://served.wicorn29.net", "visible": true },
+      { "name": "CodyChat", "url": "https://cody.wicorn29.net", "visible": true },
+      { "name": "Wicorn29 Direct", "url": "http://50.39.155.159", "visible": false },
+      { "name": "Proxmox VE", "url": "https://proxmox.wicorn29.net", "visible": true },
+      { "name": "JellyFin", "url": "https://jellyfin.wicorn29.net", "visible": false },
+      { "name": "Nextcloud", "url": "https://cloud.wicorn29.net", "visible": true }
     ]
   },
   {
     "name": "tirros.net",
     "url": "https://tirros.net",
+    "visible": true,
     "subs": [
-      { "name": "Cellular Core", "url": "https://cc.tirros.net" }
+      { "name": "Cellular Core", "url": "https://cc.tirros.net", "visible": true }
     ]
   }
 ]

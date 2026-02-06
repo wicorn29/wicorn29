@@ -1,122 +1,107 @@
-/* global.css - Wicorn29 Networks Global Styles */
-
-/* ========= Base Variables ========= */
-:root {
-  --color-bg: #d4edc9;        /* light green background */
-  --color-navbar: #228B22;    /* forest green */
-  --color-navbar-text: white;
-  --color-footer: #206f20;    /* darker forest green */
-  --color-text: #1d3b1a;      /* dark text */
-  --color-link: white;
-  --color-link-hover: #a6d08c; /* lighter green */
-  
-  --font-base: 'Segoe UI', system-ui, sans-serif;
-  --spacing: 1rem;
-  --radius: 12px;
-  --shadow: 0 4px 12px rgba(0,0,0,0.25);
+body {
+    background-color: #008080;
+    font-family: "MS Sans Serif", "Pixelated MS Sans Serif", Arial, sans-serif;
+    font-size: 16px;
+    color: #212121;
+    margin: 0;
+    padding: 20px;
 }
 
-/* ========= Reset & Base Styles ========= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.window {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #000000;
+    border-bottom-color: #000000;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+    padding: 3px;
+    margin-bottom: 20px;
 }
 
-html, body {
-  height: 100%;
-  font-family: var(--font-base);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  line-height: 1.6;
-  display: flex;
-  flex-direction: column;
+.window-header {
+    background: #000080;
+    color: #ffffff;
+    padding: 3px 5px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* ========= Navbar ========= */
-.navbar {
-  background-color: var(--color-navbar);
-  color: var(--color-navbar-text);
-  padding: var(--spacing) 0;
+.window-body {
+    padding: 10px;
 }
 
-.nav-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+ul.tree-view {
+    list-style: none;
+    padding-left: 20px;
 }
 
-.logo {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: var(--color-navbar-text);
+ul.tree-view li a {
+    text-decoration: none;
+    color: #000080;
 }
 
-.nav-links {
-  list-style: none;
-  display: flex;
-  gap: 1.5rem;
+ul.tree-view li a:hover {
+    background-color: #000080;
+    color: #ffffff;
 }
 
-.nav-links a {
-  color: var(--color-link);
-  text-decoration: none;
-  font-weight: 500;
-  transition: text-decoration 0.2s ease;
+#services-window {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    z-index: 1000;
 }
 
-.nav-links a:hover {
-  text-decoration: underline;
+#start-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #c0c0c0;
+    border-top: 2px solid #ffffff;
+    padding: 3px;
+    display: flex;
+    align-items: center;
 }
 
-/* ========= Main Content ========= */
-.main-content {
-  flex: 1;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+#start-button {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #000000;
+    border-bottom-color: #000000;
+    padding: 5px 10px;
+    font-weight: bold;
+    cursor: pointer;
 }
 
-.welcome h2 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+#start-button:active {
+    border-top-color: #000000;
+    border-left-color: #000000;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
 }
 
-.welcome p {
-  font-size: 1.1rem;
-}
-
-/* ========= Footer ========= */
-.footer {
-  background-color: var(--color-footer);
-  color: var(--color-navbar-text);
-  font-size: 0.9rem;
-  text-align: center;
-  padding: 1rem;
-  margin-top: auto;
-}
-
-/* ========= Utility Classes ========= */
-.text-muted {
-  color: #7f9c6e; /* softer green */
-}
-
-.text-accent {
-  color: var(--color-link-hover);
-}
-
-.bg-surface {
-  background-color: var(--color-navbar);
-  color: var(--color-navbar-text);
-}
-
-.card {
-  background-color: var(--color-navbar);
-  padding: var(--spacing);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  margin-bottom: var(--spacing);
+.close-button {
+    background: #c0c0c0;
+    border: 1px solid;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #000000;
+    border-bottom-color: #000000;
+    color: #000000;
+    font-family: "Marlett", "MS Sans Serif";
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+    line-height: 14px;
+    text-align: center;
+    cursor: pointer;
 }
