@@ -1,12 +1,7 @@
 # wicorn29
 
-I'm a high school student with a silly little homelab. I run my own infrastructure, and mostly use Ubiquiti gear for networking as it's awesome.
-I really enjoy pentesting things, or trying to break/intrude stuff like access control systems or online platforms.
-
-I'm *GARBAGE* at art.
-
-My pronouns are he/him.
-I define my gender as male.
+I'm just a guy with a homelab. I run my own infrastructure, and mostly use Ubiquiti gear for networking as it's awesome.
+I really enjoy pentesting things, or trying to break/intrude stuff like access control systems or online platforms
 
 
 
