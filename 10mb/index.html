@@ -2,254 +2,395 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>10MB</title>
+  <title>under 10MB</title>
 </head>
 <body>
-  <h1>make it discordable</h1>
-  <p>upload any image, video, or audio file. this page will compress it to fit under 10MB.</p>
+<h1>discord it</h1>
+<p>Compress images, video, and audio to under 10MB. Drag files onto the page or use the picker. Images run in parallel; video/audio queue through FFmpeg (much faster than real-time).</p>
 
-  <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
-  <br><br>
-  <button onclick="compress()">Compress</button>
+<div id="dropzone"
+  style="border:3px dashed #aaa;padding:30px;text-align:center;margin-bottom:12px;font-size:1.1em;"
+  ondragover="event.preventDefault();this.style.background='#eef';"
+  ondragleave="this.style.background='';"
+  ondrop="handleDrop(event)">
+  Drag &amp; drop files here, or:<br><br>
+  <input type="file" id="fileInput" accept="image/*,video/*,audio/*" multiple onchange="handleFiles(this.files)">
+</div>
 
-  <div id="status"></div>
-  <div id="output"></div>
+<div id="ffstatus" style="color:#555;font-style:italic;margin-bottom:8px;">FFmpeg: loading...</div>
+<div id="jobs"></div>
 
-  <script>
-    const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+<hr>
+<h2>History</h2>
+<button onclick="clearHistory()">Clear History</button>
+<br><br>
+<p id="noHistory">No history yet.</p>
+<table id="historyTable" border="1" cellpadding="6" cellspacing="0" style="display:none;border-collapse:collapse;width:100%;">
+  <thead>
+    <tr><th>Preview</th><th>Filename</th><th>Original</th><th>Compressed</th><th>Date</th><th>Download</th></tr>
+  </thead>
+  <tbody id="historyBody"></tbody>
+</table>
 
-    function setStatus(msg) {
-      document.getElementById('status').innerHTML = '<p>' + msg + '</p>';
-    }
+<script type="module">
+// ── FFMPEG SETUP ───────────────────────────────────────────
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
 
-    function compress() {
-      const file = document.getElementById('fileInput').files[0];
-      if (!file) { setStatus('Please select a file first.'); return; }
+const CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/';
+let ff = null;
+let ffReady = false;
+const ffQueue = []; // pending jobs waiting for FFmpeg
 
-      const type = file.type;
+async function initFFmpeg() {
+  ff = new FFmpeg();
+  ff.on('log', ({ message }) => {
+    // parse progress from ffmpeg log if needed
+  });
+  try {
+    await ff.load({ coreURL: CDN + 'ffmpeg-core.js', wasmURL: CDN + 'ffmpeg-core.wasm' });
+    ffReady = true;
+    document.getElementById('ffstatus').textContent = 'FFmpeg: ready ✓';
+    // drain queue
+    drainQueue();
+  } catch(e) {
+    document.getElementById('ffstatus').textContent = 'FFmpeg failed to load: ' + e.message + '. Video/audio compression unavailable.';
+  }
+}
 
-      if (type.startsWith('image/')) {
-        compressImage(file);
-      } else if (type.startsWith('video/')) {
-        compressVideo(file);
-      } else if (type.startsWith('audio/')) {
-        compressAudio(file);
+// Serial queue for FFmpeg (one job at a time to share the single WASM instance)
+let ffBusy = false;
+function drainQueue() {
+  if (ffBusy || ffQueue.length === 0) return;
+  ffBusy = true;
+  const next = ffQueue.shift();
+  next().finally(() => { ffBusy = false; drainQueue(); });
+}
+function enqueueFF(fn) {
+  ffQueue.push(fn);
+  if (ffReady) drainQueue();
+}
+
+// ── DRAG / FILE INPUT ──────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').style.background = '';
+  handleFiles(e.dataTransfer.files);
+}
+function handleFiles(files) {
+  for (const f of files) processFile(f);
+}
+window.handleDrop = handleDrop;
+window.handleFiles = handleFiles;
+
+// ── JOB CARDS ──────────────────────────────────────────────
+let jc = 0;
+function createCard(file) {
+  const id = 'job' + (++jc);
+  const div = document.createElement('div');
+  div.id = id;
+  div.style.cssText = 'border:1px solid #999;padding:10px;margin:8px 0;';
+  div.innerHTML =
+    '<strong>' + esc(file.name) + '</strong> (' + fmt(file.size) + ')<br>' +
+    '<span class="js">Queued...</span><br>' +
+    '<progress class="jp" value="0" max="100" style="width:100%"></progress>';
+  document.getElementById('jobs').prepend(div);
+  return id;
+}
+function jS(id, html) { const e = document.querySelector('#'+id+' .js'); if(e) e.innerHTML = html; }
+function jP(id, v)    { const e = document.querySelector('#'+id+' .jp'); if(e) e.value = v; }
+
+function jDone(id, blob, outName, mediaType, origFile) {
+  jP(id, 100);
+  jS(id, '<b>Done!</b> ' + fmt(origFile.size) + ' &rarr; ' + fmt(blob.size));
+  const card = document.getElementById(id);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = outName; a.textContent = 'Download ' + outName;
+  card.appendChild(document.createElement('br'));
+  card.appendChild(a);
+  card.appendChild(document.createElement('br'));
+  appendPreview(card, url, mediaType, false);
+  persistHistory(blob, outName, mediaType, origFile.size, blob.size);
+}
+function jErr(id, msg) {
+  jS(id, '<b>Error:</b> ' + msg);
+  const e = document.querySelector('#'+id+' .jp'); if(e) e.remove();
+}
+
+// ── DISPATCH ───────────────────────────────────────────────
+function processFile(file) {
+  const t = file.type;
+  if      (t.startsWith('image/')) compressImage(file);
+  else if (t.startsWith('video/')) compressVideo(file);
+  else if (t.startsWith('audio/')) compressAudio(file);
+  else { const id = createCard(file); jErr(id, 'Unsupported type: ' + (t||'unknown')); }
+}
+
+// ── IMAGE — binary search on quality ──────────────────────
+function compressImage(file) {
+  const id = createCard(file);
+  if (file.size <= MAX) { jErr(id, 'Already under 10MB (' + fmt(file.size) + '). No compression needed.'); return; }
+  jS(id, 'Loading image...');
+  jP(id, 5);
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const canvas = document.createElement('canvas');
+    let scale = 1.0;
+
+    // Binary-search quality at current scale; if even q=0.1 is too big, shrink scale
+    function tryCompress() {
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      let lo = 0.05, hi = 0.95, best = null, pass = 0;
+      const MAX_PASSES = 8;
+      while (lo <= hi && pass++ < MAX_PASSES) {
+        const mid = (lo + hi) / 2;
+        const d = canvas.toDataURL('image/jpeg', mid);
+        const bytes = Math.round((d.length - 'data:image/jpeg;base64,'.length) * 3/4);
+        jP(id, Math.round(10 + (pass/MAX_PASSES)*80));
+        jS(id, 'Pass ' + pass + ' — quality ' + Math.round(mid*100) + '% scale ' + Math.round(scale*100) + '% &rarr; ' + fmt(bytes));
+        if (bytes <= MAX) { best = { d, bytes, q: mid }; lo = mid + 0.02; }
+        else              { hi = mid - 0.02; }
+      }
+      if (best) {
+        const blob = dataURLToBlob(best.d);
+        jDone(id, blob, stripExt(file.name) + '_compressed.jpg', 'image', file);
       } else {
-        setStatus('Unsupported file type: ' + type + '. Only image, video, and audio are supported.');
+        // Still too big — shrink scale and retry
+        scale *= 0.7;
+        if (scale < 0.05) { jErr(id, 'Could not compress image to under 10MB.'); return; }
+        jS(id, 'Reducing scale to ' + Math.round(scale*100) + '%...');
+        setTimeout(tryCompress, 0);
       }
     }
+    tryCompress();
+  };
+  img.onerror = () => jErr(id, 'Could not load image.');
+  img.src = url;
+}
 
-    // ── IMAGE ──────────────────────────────────────────────
-    function compressImage(file) {
-      if (file.size <= MAX_BYTES) {
-        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
-        return;
-      }
+// ── VIDEO — FFmpeg ─────────────────────────────────────────
+function compressVideo(file) {
+  const id = createCard(file);
+  if (file.size <= MAX) { jErr(id, 'Already under 10MB (' + fmt(file.size) + '). No compression needed.'); return; }
 
-      setStatus('Compressing image...');
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let quality = 0.9;
-        let scale = 1.0;
-        let dataUrl;
+  jS(id, ffReady ? 'Queued for FFmpeg...' : 'Waiting for FFmpeg to load...');
 
-        // Iteratively reduce quality and scale until under 10MB
-        for (let attempt = 0; attempt < 20; attempt++) {
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          dataUrl = canvas.toDataURL('image/jpeg', quality);
-          const bytes = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
-          if (bytes <= MAX_BYTES) break;
-          if (quality > 0.3) quality -= 0.1;
-          else scale *= 0.85;
-        }
+  enqueueFF(async () => {
+    jS(id, 'Probing duration...');
+    jP(id, 2);
 
-        URL.revokeObjectURL(url);
-        const blob = dataURLToBlob(dataUrl);
-        setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
-        offerDownload(URL.createObjectURL(blob), stripExt(file.name) + '_compressed.jpg');
-        showPreview(dataUrl, 'image');
-      };
-      img.src = url;
+    // Write input
+    const inName = 'in_' + id + '_' + file.name.replace(/[^a-z0-9.]/gi,'_');
+    const outName = 'out_' + id + '.mp4';
+    await ff.writeFile(inName, await fetchFile(file));
+    jP(id, 8);
+
+    // Get duration via short ffprobe-like run
+    let duration = await probeDuration(inName);
+    if (!duration || duration <= 0) duration = file.size / 500000; // rough fallback
+
+    const totalBits = 9 * 1024 * 1024 * 8;
+    const audioBps  = 64_000;
+    const videoBps  = Math.max(50_000, Math.floor((totalBits / duration) - audioBps));
+    const videoKbps = Math.round(videoBps / 1000);
+
+    jS(id, 'Encoding video at ' + videoKbps + ' kbps (~' + Math.round(duration) + 's)...');
+
+    // Progress from ffmpeg logs
+    ff.on('progress', ({ progress }) => {
+      jP(id, Math.round(10 + progress * 85));
+      jS(id, 'Encoding... ' + Math.round(progress * 100) + '%');
+    });
+
+    try {
+      await ff.exec([
+        '-i', inName,
+        '-c:v', 'libx264',
+        '-b:v', videoKbps + 'k',
+        '-c:a', 'aac',
+        '-b:a', '64k',
+        '-movflags', '+faststart',
+        '-y', outName
+      ]);
+    } catch(e) {
+      // fallback: try with scale down
+      await ff.exec([
+        '-i', inName,
+        '-c:v', 'libx264',
+        '-b:v', videoKbps + 'k',
+        '-vf', 'scale=iw/2:ih/2',
+        '-c:a', 'aac', '-b:a', '64k',
+        '-y', outName
+      ]);
     }
 
-    // ── VIDEO ──────────────────────────────────────────────
-    function compressVideo(file) {
-      if (!window.MediaRecorder) {
-        setStatus('Your browser does not support video re-encoding (MediaRecorder API missing). Try Chrome.');
-        return;
-      }
+    const data = await ff.readFile(outName);
+    await ff.deleteFile(inName);
+    await ff.deleteFile(outName);
 
-      if (file.size <= MAX_BYTES) {
-        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
-        return;
-      }
+    const blob = new Blob([data.buffer], { type: 'video/mp4' });
+    jDone(id, blob, stripExt(file.name) + '_compressed.mp4', 'video', file);
+  });
+}
 
-      setStatus('Compressing video — this may take a moment...');
+// ── AUDIO — FFmpeg ─────────────────────────────────────────
+function compressAudio(file) {
+  const id = createCard(file);
+  if (file.size <= MAX) { jErr(id, 'Already under 10MB (' + fmt(file.size) + '). No compression needed.'); return; }
 
-      const video = document.createElement('video');
-      video.src = URL.createObjectURL(file);
-      video.muted = true;
+  jS(id, ffReady ? 'Queued for FFmpeg...' : 'Waiting for FFmpeg to load...');
 
-      video.onloadedmetadata = () => {
-        const duration = video.duration;
-        // Estimate target bitrate to hit ~9MB
-        const targetBits = 9 * 1024 * 1024 * 8;
-        const targetBps = Math.floor(targetBits / duration);
+  enqueueFF(async () => {
+    jS(id, 'Loading audio...');
+    jP(id, 5);
 
-        const canvas = document.createElement('canvas');
-        const stream = canvas.captureStream(30);
+    const inName  = 'in_' + id + '_' + file.name.replace(/[^a-z0-9.]/gi,'_');
+    const outName = 'out_' + id + '.mp3';
+    await ff.writeFile(inName, await fetchFile(file));
+    jP(id, 10);
 
-        // Add audio track if possible
-        let audioStream = null;
-        try {
-          const audioCtx = new AudioContext();
-          const source = audioCtx.createMediaElementSource(video);
-          const dest = audioCtx.createMediaStreamDestination();
-          source.connect(dest);
-          source.connect(audioCtx.destination);
-          audioStream = dest.stream;
-          audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
-        } catch(e) { /* no audio */ }
+    let duration = await probeDuration(inName);
+    if (!duration || duration <= 0) duration = file.size / 16000;
 
-        // Pick supported codec
-        const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-        let mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+    const totalBits = 9 * 1024 * 1024 * 8;
+    const bps = Math.min(Math.floor(totalBits / duration), 192_000);
+    const kbps = Math.round(bps / 1000);
 
-        const chunks = [];
-        const rec = new MediaRecorder(stream, {
-          mimeType,
-          videoBitsPerSecond: Math.min(targetBps, 2_500_000)
-        });
+    jS(id, 'Encoding audio at ' + kbps + ' kbps (~' + Math.round(duration) + 's)...');
 
-        rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-        rec.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
-          const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
-          setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
-          const outUrl = URL.createObjectURL(blob);
-          offerDownload(outUrl, stripExt(file.name) + '_compressed.' + ext);
-          showPreview(outUrl, 'video');
-        };
+    ff.on('progress', ({ progress }) => {
+      jP(id, Math.round(10 + progress * 85));
+      jS(id, 'Encoding... ' + Math.round(progress * 100) + '%');
+    });
 
-        video.onplay = () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          const draw = () => {
-            if (video.ended || video.paused) return;
-            ctx.drawImage(video, 0, 0);
-            requestAnimationFrame(draw);
-          };
-          draw();
-        };
+    await ff.exec(['-i', inName, '-b:a', kbps + 'k', '-y', outName]);
 
-        rec.start();
-        video.play();
-        video.onended = () => { rec.stop(); };
-      };
-    }
+    const data = await ff.readFile(outName);
+    await ff.deleteFile(inName);
+    await ff.deleteFile(outName);
 
-    // ── AUDIO ──────────────────────────────────────────────
-    function compressAudio(file) {
-      if (!window.AudioContext || !window.MediaRecorder) {
-        setStatus('Your browser does not support audio re-encoding. Try Chrome.');
-        return;
-      }
+    const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
+    jDone(id, blob, stripExt(file.name) + '_compressed.mp3', 'audio', file);
+  });
+}
 
-      if (file.size <= MAX_BYTES) {
-        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
-        return;
-      }
+// ── PROBE DURATION ─────────────────────────────────────────
+async function probeDuration(filename) {
+  return new Promise(resolve => {
+    let dur = 0;
+    const handler = ({ message }) => {
+      const m = message.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+      if (m) { dur = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseFloat(m[3]); }
+    };
+    ff.on('log', handler);
+    ff.exec(['-i', filename, '-f', 'null', '-']).catch(()=>{}).finally(() => {
+      ff.off('log', handler);
+      resolve(dur);
+    });
+  });
+}
 
-      setStatus('Compressing audio...');
-      file.arrayBuffer().then(buf => {
-        const audioCtx = new AudioContext();
-        audioCtx.decodeAudioData(buf, decoded => {
-          const duration = decoded.duration;
-          const targetBps = Math.floor((9 * 1024 * 1024 * 8) / duration);
+// ── HISTORY ────────────────────────────────────────────────
+const HKEY = 'compressor_history_v2';
+function loadHistory() { try { return JSON.parse(localStorage.getItem(HKEY))||[]; } catch(e){ return []; } }
+function saveHistoryList(l) { try { localStorage.setItem(HKEY, JSON.stringify(l)); } catch(e){ console.warn('Storage full'); } }
 
-          const dest = audioCtx.createMediaStreamDestination();
-          const src = audioCtx.createBufferSource();
-          src.buffer = decoded;
-          src.connect(dest);
+function persistHistory(blob, outName, mediaType, origSize, compSize) {
+  const entry = { name:outName, mediaType, origSize, compSize, date: new Date().toLocaleString(), dataUrl: null };
+  if (blob.size < 9*1024*1024) {
+    const r = new FileReader();
+    r.onload = () => { entry.dataUrl = r.result; push(entry); };
+    r.readAsDataURL(blob);
+  } else { push(entry); }
+}
+function push(entry) {
+  const l = loadHistory(); l.unshift(entry);
+  saveHistoryList(l.slice(0,20));
+  renderHistory();
+}
+function clearHistory() {
+  if(!confirm('Clear all history?')) return;
+  localStorage.removeItem(HKEY);
+  renderHistory();
+}
+window.clearHistory = clearHistory;
 
-          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? 'audio/webm;codecs=opus' : 'audio/webm';
+function renderHistory() {
+  const list = loadHistory();
+  document.getElementById('noHistory').style.display = list.length ? 'none' : '';
+  const table = document.getElementById('historyTable');
+  table.style.display = list.length ? '' : 'none';
+  const tbody = document.getElementById('historyBody');
+  tbody.innerHTML = '';
+  for (const e of list) {
+    const tr = document.createElement('tr');
+    // Preview
+    const tdP = document.createElement('td');
+    if (e.dataUrl) appendPreview(tdP, e.dataUrl, e.mediaType, true); else tdP.textContent='—';
+    tr.appendChild(tdP);
+    // Name
+    const tdN = document.createElement('td'); tdN.textContent = e.name; tr.appendChild(tdN);
+    // Orig
+    const tdO = document.createElement('td'); tdO.textContent = fmt(e.origSize); tr.appendChild(tdO);
+    // Comp
+    const tdC = document.createElement('td'); tdC.textContent = fmt(e.compSize); tr.appendChild(tdC);
+    // Date
+    const tdD = document.createElement('td'); tdD.textContent = e.date; tr.appendChild(tdD);
+    // Download
+    const tdDl = document.createElement('td');
+    if (e.dataUrl) {
+      const a = document.createElement('a'); a.href=e.dataUrl; a.download=e.name; a.textContent='Download'; tdDl.appendChild(a);
+    } else { tdDl.textContent='N/A'; }
+    tr.appendChild(tdDl);
+    tbody.appendChild(tr);
+  }
+}
 
-          const chunks = [];
-          const rec = new MediaRecorder(dest.stream, {
-            mimeType,
-            audioBitsPerSecond: Math.min(targetBps, 128_000)
-          });
-          rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-          rec.onstop = () => {
-            const blob = new Blob(chunks, { type: mimeType });
-            setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
-            const outUrl = URL.createObjectURL(blob);
-            offerDownload(outUrl, stripExt(file.name) + '_compressed.webm');
-            showPreview(outUrl, 'audio');
-          };
+// ── PREVIEW ────────────────────────────────────────────────
+function appendPreview(container, src, mediaType, small) {
+  if (mediaType === 'image') {
+    const img = document.createElement('img');
+    img.src = src; img.style.maxWidth = small?'80px':'360px'; img.style.maxHeight = small?'60px':'240px';
+    container.appendChild(img);
+  } else if (mediaType === 'video') {
+    const v = document.createElement('video');
+    v.src = src; v.controls = true; v.style.maxWidth = small?'120px':'360px';
+    container.appendChild(v);
+  } else if (mediaType === 'audio') {
+    const a = document.createElement('audio');
+    a.src = src; a.controls = true; if(small) a.style.width='180px';
+    container.appendChild(a);
+  }
+}
 
-          rec.start();
-          src.start();
-          src.onended = () => rec.stop();
-        });
-      });
-    }
+// ── UTILS ──────────────────────────────────────────────────
+const MAX = 10 * 1024 * 1024;
+function fmt(b) {
+  if (b==null) return '?';
+  if (b>=1048576) return (b/1048576).toFixed(2)+' MB';
+  if (b>=1024)    return (b/1024).toFixed(1)+' KB';
+  return b+' B';
+}
+function stripExt(n) { return n.replace(/\.[^.]+$/,''); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dataURLToBlob(d) {
+  const [h,data] = d.split(',');
+  const mime = h.match(/:(.*?);/)[1];
+  const bin = atob(data); const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
 
-    // ── HELPERS ────────────────────────────────────────────
-    function fmt(bytes) {
-      if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-      if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return bytes + ' B';
-    }
-
-    function stripExt(name) {
-      return name.replace(/\.[^.]+$/, '');
-    }
-
-    function dataURLToBlob(dataUrl) {
-      const [header, data] = dataUrl.split(',');
-      const mime = header.match(/:(.*?);/)[1];
-      const binary = atob(data);
-      const arr = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
-      return new Blob([arr], { type: mime });
-    }
-
-    function offerDownload(url, filename) {
-      const out = document.getElementById('output');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.textContent = 'Download ' + filename;
-      out.appendChild(document.createElement('br'));
-      out.appendChild(a);
-    }
-
-    function showPreview(src, type) {
-      const out = document.getElementById('output');
-      out.appendChild(document.createElement('br'));
-      if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = src;
-        img.style.maxWidth = '400px';
-        out.appendChild(img);
-      } else if (type === 'video') {
-        const v = document.createElement('video');
-        v.src = src; v.controls = true; v.style.maxWidth = '400px';
-        out.appendChild(v);
-      } else if (type === 'audio') {
-        const a = document.createElement('audio');
-        a.src = src; a.controls = true;
-        out.appendChild(a);
-      }
-    }
-  </script>
+// ── INIT ───────────────────────────────────────────────────
+renderHistory();
+initFFmpeg();
+</script>
 </body>
 </html>
