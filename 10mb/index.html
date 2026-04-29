@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>10MB</title>
+</head>
+<body>
+  <h1>make it discordable</h1>
+  <p>Upload any image or video file. The page will compress it to fit under 10MB.</p>
+
+  <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
+  <br><br>
+  <button onclick="compress()">Compress</button>
+
+  <div id="status"></div>
+  <div id="output"></div>
+
+  <script>
+    const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+
+    function setStatus(msg) {
+      document.getElementById('status').innerHTML = '<p>' + msg + '</p>';
+    }
+
+    function compress() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) { setStatus('Please select a file first.'); return; }
+
+      const type = file.type;
+
+      if (type.startsWith('image/')) {
+        compressImage(file);
+      } else if (type.startsWith('video/')) {
+        compressVideo(file);
+      } else if (type.startsWith('audio/')) {
+        compressAudio(file);
+      } else {
+        setStatus('Unsupported file type: ' + type + '. Only image, video, and audio are supported.');
+      }
+    }
+
+    // ── IMAGE ──────────────────────────────────────────────
+    function compressImage(file) {
+      if (file.size <= MAX_BYTES) {
+        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
+        return;
+      }
+
+      setStatus('Compressing image...');
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let quality = 0.9;
+        let scale = 1.0;
+        let dataUrl;
+
+        // Iteratively reduce quality and scale until under 10MB
+        for (let attempt = 0; attempt < 20; attempt++) {
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+          const bytes = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
+          if (bytes <= MAX_BYTES) break;
+          if (quality > 0.3) quality -= 0.1;
+          else scale *= 0.85;
+        }
+
+        URL.revokeObjectURL(url);
+        const blob = dataURLToBlob(dataUrl);
+        setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
+        offerDownload(URL.createObjectURL(blob), stripExt(file.name) + '_compressed.jpg');
+        showPreview(dataUrl, 'image');
+      };
+      img.src = url;
+    }
+
+    // ── VIDEO ──────────────────────────────────────────────
+    function compressVideo(file) {
+      if (!window.MediaRecorder) {
+        setStatus('Your browser does not support video re-encoding (MediaRecorder API missing). Try Chrome.');
+        return;
+      }
+
+      if (file.size <= MAX_BYTES) {
+        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
+        return;
+      }
+
+      setStatus('Compressing video — this may take a moment...');
+
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      video.muted = true;
+
+      video.onloadedmetadata = () => {
+        const duration = video.duration;
+        // Estimate target bitrate to hit ~9MB
+        const targetBits = 9 * 1024 * 1024 * 8;
+        const targetBps = Math.floor(targetBits / duration);
+
+        const canvas = document.createElement('canvas');
+        const stream = canvas.captureStream(30);
+
+        // Add audio track if possible
+        let audioStream = null;
+        try {
+          const audioCtx = new AudioContext();
+          const source = audioCtx.createMediaElementSource(video);
+          const dest = audioCtx.createMediaStreamDestination();
+          source.connect(dest);
+          source.connect(audioCtx.destination);
+          audioStream = dest.stream;
+          audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
+        } catch(e) { /* no audio */ }
+
+        // Pick supported codec
+        const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+        let mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+        const chunks = [];
+        const rec = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: Math.min(targetBps, 2_500_000)
+        });
+
+        rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        rec.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+          setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
+          const outUrl = URL.createObjectURL(blob);
+          offerDownload(outUrl, stripExt(file.name) + '_compressed.' + ext);
+          showPreview(outUrl, 'video');
+        };
+
+        video.onplay = () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          const draw = () => {
+            if (video.ended || video.paused) return;
+            ctx.drawImage(video, 0, 0);
+            requestAnimationFrame(draw);
+          };
+          draw();
+        };
+
+        rec.start();
+        video.play();
+        video.onended = () => { rec.stop(); };
+      };
+    }
+
+    // ── AUDIO ──────────────────────────────────────────────
+    function compressAudio(file) {
+      if (!window.AudioContext || !window.MediaRecorder) {
+        setStatus('Your browser does not support audio re-encoding. Try Chrome.');
+        return;
+      }
+
+      if (file.size <= MAX_BYTES) {
+        setStatus('<b>Error:</b> File is already under 10MB (' + fmt(file.size) + '). No compression needed.');
+        return;
+      }
+
+      setStatus('Compressing audio...');
+      file.arrayBuffer().then(buf => {
+        const audioCtx = new AudioContext();
+        audioCtx.decodeAudioData(buf, decoded => {
+          const duration = decoded.duration;
+          const targetBps = Math.floor((9 * 1024 * 1024 * 8) / duration);
+
+          const dest = audioCtx.createMediaStreamDestination();
+          const src = audioCtx.createBufferSource();
+          src.buffer = decoded;
+          src.connect(dest);
+
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+          const chunks = [];
+          const rec = new MediaRecorder(dest.stream, {
+            mimeType,
+            audioBitsPerSecond: Math.min(targetBps, 128_000)
+          });
+          rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+          rec.onstop = () => {
+            const blob = new Blob(chunks, { type: mimeType });
+            setStatus('Done! Compressed to ' + fmt(blob.size) + ' (original: ' + fmt(file.size) + ')');
+            const outUrl = URL.createObjectURL(blob);
+            offerDownload(outUrl, stripExt(file.name) + '_compressed.webm');
+            showPreview(outUrl, 'audio');
+          };
+
+          rec.start();
+          src.start();
+          src.onended = () => rec.stop();
+        });
+      });
+    }
+
+    // ── HELPERS ────────────────────────────────────────────
+    function fmt(bytes) {
+      if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+      if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return bytes + ' B';
+    }
+
+    function stripExt(name) {
+      return name.replace(/\.[^.]+$/, '');
+    }
+
+    function dataURLToBlob(dataUrl) {
+      const [header, data] = dataUrl.split(',');
+      const mime = header.match(/:(.*?);/)[1];
+      const binary = atob(data);
+      const arr = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+
+    function offerDownload(url, filename) {
+      const out = document.getElementById('output');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.textContent = 'Download ' + filename;
+      out.appendChild(document.createElement('br'));
+      out.appendChild(a);
+    }
+
+    function showPreview(src, type) {
+      const out = document.getElementById('output');
+      out.appendChild(document.createElement('br'));
+      if (type === 'image') {
+        const img = document.createElement('img');
+        img.src = src;
+        img.style.maxWidth = '400px';
+        out.appendChild(img);
+      } else if (type === 'video') {
+        const v = document.createElement('video');
+        v.src = src; v.controls = true; v.style.maxWidth = '400px';
+        out.appendChild(v);
+      } else if (type === 'audio') {
+        const a = document.createElement('audio');
+        a.src = src; a.controls = true;
+        out.appendChild(a);
+      }
+    }
+  </script>
+</body>
+</html>
