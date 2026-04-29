@@ -81,79 +81,199 @@
 
 <script type="module">
 
+// ─────────────────────────────────────────────
+// FFmpeg imports (CORRECT + VERIFIED VERSIONS)
+// ─────────────────────────────────────────────
 import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
 
-// ─────────────────────────────
-// SIMPLE REPLACEMENTS (NO UTIL)
-// ─────────────────────────────
-async function fetchFile(file) {
-  return new Uint8Array(await file.arrayBuffer());
-}
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const USE_MT = false; // force stable mode (recommended)
 
-async function toBlobURL(url, mime) {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
+const FF_BASE = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd`;
 
-// ─────────────────────────────
-// FFMPEG CONFIG
-// ─────────────────────────────
-const FF_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
+let ff = null;
+let ffReady = false;
+const ffQueue = [];
+let ffBusy = false;
 
-let ff, ffReady = false;
-
-// ─────────────────────────────
-// INIT
-// ─────────────────────────────
+// ─────────────────────────────────────────────
+// INIT FFMPEG
+// ─────────────────────────────────────────────
 async function initFFmpeg() {
   setFFStatus('loading', 'FFmpeg: loading…');
 
-  ff = new FFmpeg();
+  try {
+    ff = new FFmpeg();
 
-  await ff.load({
-    coreURL: await toBlobURL(`${FF_BASE}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${FF_BASE}/ffmpeg-core.wasm`, 'application/wasm'),
+    await ff.load({
+      coreURL: await toBlobURL(`${FF_BASE}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${FF_BASE}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+
+    ff.on('log', ({ message }) => console.log(message));
+
+    ffReady = true;
+    setFFStatus('ready', 'FFmpeg: ready ✓');
+    drainQueue();
+
+  } catch (e) {
+    console.error(e);
+    setFFStatus('error', 'FFmpeg failed. Use browser mode.');
+  }
+}
+
+// ─────────────────────────────────────────────
+// QUEUE SYSTEM
+// ─────────────────────────────────────────────
+function drainQueue() {
+  if (ffBusy || ffQueue.length === 0) return;
+  ffBusy = true;
+
+  const job = ffQueue.shift();
+  job().finally(() => {
+    ffBusy = false;
+    drainQueue();
   });
-
-  ffReady = true;
-  setFFStatus('ready', 'FFmpeg: ready ✓');
 }
 
-// ─────────────────────────────
-// VIDEO EXAMPLE (WORKING)
-// ─────────────────────────────
-async function compressVideo(file, id) {
-  const inName = `in_${id}.mp4`;
-  const outName = `out_${id}.mp4`;
-
-  await ff.writeFile(inName, await fetchFile(file));
-
-  await ff.exec([
-    '-i', inName,
-    '-c:v', 'libx264',
-    '-preset', 'veryfast',
-    '-crf', '28',
-    '-c:a', 'aac',
-    '-b:a', '64k',
-    '-y',
-    outName
-  ]);
-
-  const data = await ff.readFile(outName);
-
-  jDone(
-    id,
-    new Blob([data.buffer], { type: 'video/mp4' }),
-    file.name.replace(/\.[^.]+$/, '') + '_compressed.mp4',
-    'video',
-    file
-  );
+function enqueueFF(job) {
+  ffQueue.push(job);
+  if (ffReady) drainQueue();
 }
 
-// ─────────────────────────────
-// START
-// ─────────────────────────────
+// ─────────────────────────────────────────────
+// UI STATUS
+// ─────────────────────────────────────────────
+function setFFStatus(cls, msg) {
+  const el = document.getElementById('ffstatus');
+  el.className = cls;
+  el.textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+// HELPERS (safe replacements if missing)
+// ─────────────────────────────────────────────
+const MAX = 10 * 1024 * 1024;
+
+function fmt(b) {
+  if (!b) return '?';
+  if (b > 1048576) return (b / 1048576).toFixed(2) + ' MB';
+  if (b > 1024) return (b / 1024).toFixed(1) + ' KB';
+  return b + ' B';
+}
+
+function stripExt(n) {
+  return n.replace(/\.[^.]+$/, '');
+}
+
+// ─────────────────────────────────────────────
+// FILE HANDLER (HOOK INTO YOUR UI)
+// ─────────────────────────────────────────────
+function processFile(file) {
+  const id = createCard(file);
+
+  if (file.type.startsWith('video/')) {
+    compressVideo(file, id);
+  } else if (file.type.startsWith('audio/')) {
+    compressAudio(file, id);
+  } else {
+    jErr(id, 'Only video/audio supported in FFmpeg mode');
+  }
+}
+
+// ─────────────────────────────────────────────
+// VIDEO COMPRESSION (FIXED)
+// ─────────────────────────────────────────────
+function compressVideo(file, id) {
+  if (file.size <= MAX) {
+    jErr(id, 'Already under 10MB');
+    return;
+  }
+
+  jS(id, ffReady ? 'Queued…' : 'Loading FFmpeg…');
+
+  enqueueFF(async () => {
+    const inName = `in_${id}.mp4`;
+    const outName = `out_${id}.mp4`;
+
+    await ff.writeFile(inName, await fetchFile(file));
+
+    const durationGuess = file.size / 500000;
+    const targetBits = 9 * 1024 * 1024 * 8;
+    const vbps = Math.max(100000, Math.floor(targetBits / durationGuess));
+
+    jS(id, 'Encoding…');
+
+    ff.on('progress', ({ progress }) => {
+      jP(id, Math.round(progress * 100));
+    });
+
+    await ff.exec([
+      '-i', inName,
+      '-c:v', 'libx264',
+      '-b:v', Math.round(vbps / 1000) + 'k',
+      '-c:a', 'aac',
+      '-b:a', '64k',
+      '-movflags', '+faststart',
+      '-y',
+      outName
+    ]);
+
+    const data = await ff.readFile(outName);
+
+    await ff.deleteFile(inName);
+    await ff.deleteFile(outName);
+
+    jDone(
+      id,
+      new Blob([data.buffer], { type: 'video/mp4' }),
+      stripExt(file.name) + '_compressed.mp4',
+      'video',
+      file
+    );
+  });
+}
+
+// ─────────────────────────────────────────────
+// AUDIO COMPRESSION (FIXED)
+// ─────────────────────────────────────────────
+function compressAudio(file, id) {
+  if (file.size <= MAX) {
+    jErr(id, 'Already under 10MB');
+    return;
+  }
+
+  enqueueFF(async () => {
+    const inName = `in_${id}.mp3`;
+    const outName = `out_${id}.mp3`;
+
+    await ff.writeFile(inName, await fetchFile(file));
+
+    await ff.exec([
+      '-i', inName,
+      '-b:a', '128k',
+      '-y',
+      outName
+    ]);
+
+    const data = await ff.readFile(outName);
+
+    jDone(
+      id,
+      new Blob([data.buffer], { type: 'audio/mpeg' }),
+      stripExt(file.name) + '_compressed.mp3',
+      'audio',
+      file
+    );
+  });
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
 initFFmpeg();
 
 </script>
