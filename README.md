@@ -29,7 +29,7 @@ I really enjoy pentesting things, or trying to break/intrude stuff like access c
   Any unix like interface of sorts
   
 
-## Stuff I DO NOT know
+## Stuff I DO NOT know (very well)
 
 - css (it confuses me, thats what chatgpt is for)
 - C / C++ (bleeding edge of my knowlage, makes me want to cry)
