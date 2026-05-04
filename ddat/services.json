@@ -17,7 +17,7 @@
     "url": "https://tirros.net",
     "visible": true,
     "subs": [
-      { "name": "Cellular Core", "url": "https://cc.tirros.net", "visible": true }
+      { "name": "Core", "url": "https://core.tirros.net", "visible": true }
     ]
   }
 ]
