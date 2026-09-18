@@ -1,18 +1,37 @@
-# wicorn29
+# hiya
 
-I'm just a guy who operates a homelab. I run my own infrastructure, and enjoy pentesting /trying to break/intrude stuff like access control systems or online platforms (legally).
+I'm traygaa, a guy who runs a homelab and enjoys working with computers.
 
+I build and maintain my own infrastructure, experiment with networking and servers, and work on various software and hardware projects. I'm also interested in cybersecurity and enjoy learning how systems work and how they can be made more secure.
 
-[global privacy policy](http://wicorn29.net/privacypolicy.html)
+Most of the projects here started because I wanted to learn something, solve a problem, or thought it would be interesting to build.
 
+## Web Tools
 
+* [W29 Networks File Checker](https://w29.net/webtools/filechecker.html)
+  Check files for W29 Networks processing metadata.
 
+## Websites
 
-## Website(s)
+* [w29.net](https://w29.net)
+  W29 Networks' current website.
 
-[w29.net](https://w29.net)  
-[wicorn29.net](https://wicorn29.net) (deprecation)
+* [wicorn29.net](https://wicorn29.net)
+  Deprecated and being phased out.
+
+* [GitHub](https://github.com/wicorn29)
+  Where I keep my projects and code.
+
+## Privacy
+
+[Global Privacy Policy](https://wicorn29.net/privacypolicy.html)
 
 ## Contact
 
-**wilsonc@wicorn29.net**
+**[wilsonc@wicorn29.net](mailto:wilsonc@wicorn29.net)**
+
+This is the best way to get in touch with me if you have a question about something I've made, want to talk about a project, or just want to say hi. Don't worry, I won't bite. Probably.
+
+---
+
+Thanks for being interested in cool computer stuffs!
