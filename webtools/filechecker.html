@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>W29 Networks - File Checker</title>
+
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="stylesheet" href="global.css">
+</head>
+
+<body>
+
+    <div class="window">
+        <div class="window-header">
+            W29 Networks File Checker
+        </div>
+
+        <div class="window-body">
+
+            <p>
+                <a href="javascript:history.back()">← Back</a> |
+                <a href="/">W29 Networks</a> |
+                <a href="https://github.com/wicorn29">GitHub</a>
+            </p>
+
+            <hr>
+
+            <h1>File Processing Verification Utility</h1>
+
+            <p>
+                Check a file for W29 Networks processing metadata.
+            </p>
+
+            <h2>Upload a file</h2>
+
+            <form onsubmit="checkFile(); return false;">
+
+                <input
+                    type="file"
+                    id="file"
+                >
+
+                <input
+                    type="submit"
+                    value="Check File"
+                >
+
+            </form>
+
+            <h2>Check a file URL</h2>
+
+            <form onsubmit="checkURL(); return false;">
+
+                <input
+                    type="text"
+                    id="url"
+                    size="55"
+                    placeholder="https://example.com/file.gif"
+                >
+
+                <input
+                    type="submit"
+                    value="Check URL"
+                >
+
+            </form>
+
+            <br>
+
+            <div
+                id="resultBox"
+                style="
+                    border: 1px solid;
+                    padding: 10px;
+                    background: #fff;
+                "
+            >
+
+                <b>Result</b>
+
+                <p id="result">
+                    Nothing checked yet.
+                </p>
+
+                <div id="origin"></div>
+
+            </div>
+
+            <br>
+
+            <small>
+                Local files are checked in the browser and are not uploaded.
+            </small>
+
+            <br>
+
+            <small>
+                W29 processing metadata is not a cryptographic signature.
+            </small>
+
+        </div>
+    </div>
+
+    <div
+        id="viewer"
+        style="
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.75);
+            z-index: 9999;
+        "
+    >
+
+        <div
+            class="window"
+            style="
+                position: absolute;
+                left: 5%;
+                top: 5%;
+                width: 90%;
+                height: 90%;
+                margin: 0;
+            "
+        >
+
+            <div class="window-header">
+
+                <span>File Viewer</span>
+
+                <button
+                    onclick="closeViewer()"
+                    style="
+                        float: right;
+                    "
+                >
+                    Close
+                </button>
+
+            </div>
+
+            <div
+                class="window-body"
+                style="
+                    height: calc(100% - 40px);
+                    overflow: auto;
+                    box-sizing: border-box;
+                    text-align: center;
+                "
+                id="viewerContent"
+            ></div>
+
+        </div>
+
+    </div>
+
+<script>
+
+var W29_HEADER = "W29NET:";
+
+var currentObjectURL = null;
+
+function setResult(text, good) {
+
+    var box =
+        document.getElementById("resultBox");
+
+    var r =
+        document.getElementById("result");
+
+    if (good) {
+
+        box.style.backgroundColor = "#dff0df";
+        box.style.borderColor = "#669966";
+        box.style.color = "#006600";
+
+    } else {
+
+        box.style.backgroundColor = "#f0dddd";
+        box.style.borderColor = "#996666";
+        box.style.color = "#990000";
+    }
+
+    r.innerHTML =
+        text;
+}
+
+function setChecking(text) {
+
+    var box =
+        document.getElementById("resultBox");
+
+    var r =
+        document.getElementById("result");
+
+    box.style.backgroundColor = "#fff";
+    box.style.borderColor = "";
+    box.style.color = "";
+
+    r.innerHTML =
+        text;
+}
+
+function setOrigin(tag, url) {
+
+    var html =
+        "<hr>" +
+        "<b>Estimated origin</b>" +
+        "<p><code>" +
+        escapeHTML(tag) +
+        "</code></p>";
+
+    if (url) {
+
+        var link =
+            url;
+
+        if (
+            !link.startsWith("http://") &&
+            !link.startsWith("https://")
+        ) {
+
+            link =
+                "https://" + link;
+        }
+
+        html +=
+            "<b>Metadata URL</b>" +
+            "<p>" +
+            "<a href=\"" +
+            escapeAttribute(link) +
+            "\" target=\"_blank\" rel=\"noopener\">" +
+            escapeHTML(url) +
+            "</a>" +
+            "</p>";
+    }
+
+    document.getElementById("origin").innerHTML =
+        html;
+}
+
+function clearOrigin() {
+
+    document.getElementById("origin").innerHTML =
+        "";
+}
+
+function addViewButton(target, data, contentType) {
+
+    if (!contentType) {
+        return "";
+    }
+
+    var type =
+        contentType.toLowerCase();
+
+    var renderable =
+        type.startsWith("image/") ||
+        type.startsWith("video/") ||
+        type.startsWith("audio/") ||
+        type === "application/pdf" ||
+        type === "text/plain" ||
+        type === "text/html";
+
+    if (!renderable) {
+        return "";
+    }
+
+    var id =
+        "view-" + Date.now();
+
+    window[id] = {
+        data: data,
+        type: type
+    };
+
+    return (
+        "<br>" +
+        "<button onclick=\"viewStoredFile('" +
+        id +
+        "')\">View File</button>"
+    );
+}
+
+function viewStoredFile(id) {
+
+    var item =
+        window[id];
+
+    if (!item) {
+        return;
+    }
+
+    var blob =
+        new Blob(
+            [item.data],
+            {
+                type: item.type
+            }
+        );
+
+    openViewer(
+        URL.createObjectURL(blob),
+        item.type
+    );
+}
+
+function openViewer(url, type) {
+
+    closeViewer();
+
+    var viewer =
+        document.getElementById("viewer");
+
+    var content =
+        document.getElementById("viewerContent");
+
+    content.innerHTML =
+        "";
+
+    if (type.startsWith("image/")) {
+
+        var image =
+            document.createElement("img");
+
+        image.src =
+            url;
+
+        image.style.maxWidth =
+            "100%";
+
+        image.style.maxHeight =
+            "100%";
+
+        image.style.objectFit =
+            "contain";
+
+        content.appendChild(
+            image
+        );
+
+    } else if (type.startsWith("video/")) {
+
+        var video =
+            document.createElement("video");
+
+        video.src =
+            url;
+
+        video.controls =
+            true;
+
+        video.autoplay =
+            true;
+
+        video.style.maxWidth =
+            "100%";
+
+        video.style.maxHeight =
+            "100%";
+
+        content.appendChild(
+            video
+        );
+
+    } else if (type.startsWith("audio/")) {
+
+        var audio =
+            document.createElement("audio");
+
+        audio.src =
+            url;
+
+        audio.controls =
+            true;
+
+        audio.autoplay =
+            true;
+
+        content.appendChild(
+            audio
+        );
+
+    } else if (type === "application/pdf") {
+
+        var frame =
+            document.createElement("iframe");
+
+        frame.src =
+            url;
+
+        frame.style.width =
+            "100%";
+
+        frame.style.height =
+            "100%";
+
+        frame.style.border =
+            "0";
+
+        content.appendChild(
+            frame
+        );
+
+    } else if (
+        type === "text/plain" ||
+        type === "text/html"
+    ) {
+
+        var frame =
+            document.createElement("iframe");
+
+        frame.src =
+            url;
+
+        frame.style.width =
+            "100%";
+
+        frame.style.height =
+            "100%";
+
+        frame.style.border =
+            "0";
+
+        content.appendChild(
+            frame
+        );
+    }
+
+    currentObjectURL =
+        url;
+
+    viewer.style.display =
+        "block";
+}
+
+function closeViewer() {
+
+    var viewer =
+        document.getElementById("viewer");
+
+    viewer.style.display =
+        "none";
+
+    var content =
+        document.getElementById("viewerContent");
+
+    content.innerHTML =
+        "";
+
+    if (currentObjectURL) {
+
+        URL.revokeObjectURL(
+            currentObjectURL
+        );
+
+        currentObjectURL =
+            null;
+    }
+}
+
+function checkData(
+    data,
+    name,
+    checkedURL,
+    contentType
+) {
+
+    var text =
+        new TextDecoder("ascii").decode(data);
+
+    var start =
+        text.indexOf(W29_HEADER);
+
+    clearOrigin();
+
+    var viewButton =
+        addViewButton(
+            name,
+            data,
+            contentType
+        );
+
+    if (start == -1) {
+
+        var notFound =
+            "No W29 Networks processing metadata was found.";
+
+        if (checkedURL) {
+
+            notFound +=
+                "<br><br>" +
+                "<b>Checked URL:</b><br>" +
+                "<a href=\"" +
+                escapeAttribute(checkedURL) +
+                "\" target=\"_blank\" rel=\"noopener\">" +
+                escapeHTML(checkedURL) +
+                "</a>" +
+                viewButton;
+
+        } else {
+
+            notFound +=
+                "<br><br>" +
+                "<b>Checked file:</b><br>" +
+                "<code>" +
+                escapeHTML(name) +
+                "</code>" +
+                viewButton;
+        }
+
+        setResult(
+            notFound,
+            false
+        );
+
+        return;
+    }
+
+    /*
+     * W29 metadata currently follows this format:
+     *
+     * W29NET:<tag>|<domain>|<organization>
+     *
+     * The checker does not attempt to interpret the tag.
+     */
+
+    var end =
+        text.indexOf("\0", start);
+
+    if (end == -1) {
+        end = text.length;
+    }
+
+    var header =
+        text.substring(start, end);
+
+    var parts =
+        header.split("|");
+
+    var tag =
+        parts[0].substring(
+            W29_HEADER.length
+        );
+
+    var metadataURL =
+        parts[1] || "";
+
+    var found =
+        "W29 Networks processing metadata found.";
+
+    if (checkedURL) {
+
+        found +=
+            "<br><br>" +
+            "<b>Checked URL:</b><br>" +
+            "<a href=\"" +
+            escapeAttribute(checkedURL) +
+            "\" target=\"_blank\" rel=\"noopener\">" +
+            escapeHTML(checkedURL) +
+            "</a>" +
+            viewButton;
+
+    } else {
+
+        found +=
+            "<br><br>" +
+            "<b>Checked file:</b><br>" +
+            "<code>" +
+            escapeHTML(name) +
+            "</code>" +
+            viewButton;
+    }
+
+    setResult(
+        found,
+        true
+    );
+
+    if (tag) {
+
+        setOrigin(
+            tag,
+            metadataURL
+        );
+
+    } else {
+
+        setOrigin(
+            "tag not specified",
+            metadataURL
+        );
+    }
+}
+
+async function checkFile() {
+
+    var file =
+        document.getElementById("file").files[0];
+
+    if (!file) {
+
+        clearOrigin();
+
+        setResult(
+            "Please select a file.",
+            false
+        );
+
+        return;
+    }
+
+    setChecking(
+        "Checking file..."
+    );
+
+    clearOrigin();
+
+    try {
+
+        var data =
+            await file.arrayBuffer();
+
+        checkData(
+            data,
+            file.name,
+            null,
+            file.type
+        );
+
+    } catch (e) {
+
+        console.log(e);
+
+        setResult(
+            "The file could not be read.",
+            false
+        );
+    }
+}
+
+async function checkURL() {
+
+    var url =
+        document.getElementById("url").value.trim();
+
+    if (!url) {
+
+        clearOrigin();
+
+        setResult(
+            "Please enter a URL.",
+            false
+        );
+
+        return;
+    }
+
+    setChecking(
+        "Downloading file..."
+    );
+
+    clearOrigin();
+
+    try {
+
+        var response =
+            await fetch(url);
+
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP " + response.status
+            );
+        }
+
+        var data =
+            await response.arrayBuffer();
+
+        var contentType =
+            response.headers.get(
+                "content-type"
+            ) || "";
+
+        checkData(
+            data,
+            url,
+            url,
+            contentType
+        );
+
+    } catch (e) {
+
+        console.log(e);
+
+        setResult(
+            "Could not check the URL.<br><br>" +
+            "<b>Checked URL:</b><br>" +
+            "<a href=\"" +
+            escapeAttribute(url) +
+            "\" target=\"_blank\" rel=\"noopener\">" +
+            escapeHTML(url) +
+            "</a>" +
+            "<br><br>" +
+            "The server may not allow browser requests (CORS), " +
+            "or the URL may be invalid.",
+            false
+        );
+    }
+}
+
+function escapeHTML(text) {
+
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function escapeAttribute(text) {
+
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+</script>
+
+</body>
+</html>
